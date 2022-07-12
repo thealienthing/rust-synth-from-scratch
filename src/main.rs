@@ -1,44 +1,56 @@
-use cpal::traits::{HostTrait, DeviceTrait, StreamTrait};
-use cpal::{Sample, SampleFormat};
-use rand::prelude::*;
-
+use midir::MidiInput;
+use std::io;
+use std::error::Error;
 
 fn main() {
-    let host = cpal::default_host();
-    let device = host.default_output_device()
-        .expect("Failed to get default output device");
-    let mut device_supported_configs = device.supported_output_configs()
-        .expect("Failed to get devices supported output configs");
-    let supported_config = device_supported_configs.next()
-        .expect("No supported config found")
-        .with_max_sample_rate();
-
-    let sample_format = supported_config.sample_format();
-    let config = supported_config.into();
-    let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
-    let stream = match sample_format {
-        SampleFormat::F32 => device.build_output_stream(&config, output_callback::<f32>, err_fn),
-        SampleFormat::I16 => device.build_output_stream(&config, output_callback::<i16>, err_fn),
-        SampleFormat::U16 => device.build_output_stream(&config, output_callback::<u16>, err_fn)
-    }.unwrap();
-
-    stream.play().unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(4000));
-
+    //play_white_noise();    
+    start_midi().unwrap();
+    
 }
 
-fn output_callback<T: Sample>(data: &mut [T], _: &cpal::OutputCallbackInfo) {
-    for sample in data.iter_mut() {
-        *sample = Sample::from(&get_attenuated());
+fn start_midi() -> Result<(), Box<dyn Error>> {
+    let midi_input = MidiInput::new("midi_connections").unwrap();
+    let port_number = choose_midi_input(&midi_input).unwrap();
+    println!("Chosen MIDI port is {}", port_number);
+    let ports_list = midi_input.ports();
+    let midi_input_port = ports_list.get(port_number).unwrap();
+    midi_input.connect(midi_input_port,
+        "midi_input", 
+        move | stamp, message, _| {
+            println!("MSG");
+            println!("MSG IN: {}, {:?} | Len = {}", stamp, message, message.len());
+        }, ())?;
+    // let mut buf = String::new();
+    // io::stdin().read_line(&mut buf).expect("Failed to read");
+    std::thread::sleep(std::time::Duration::from_secs(10));
+    Ok(())
+}
+
+fn choose_midi_input(midi_input: &MidiInput) -> Result<usize, io::Error> {
+    println!("Available MIDI Input Ports:");
+    println!("===========================\n");
+    let ports = midi_input.ports();
+    for p in 0..ports.len() {
+        let port = ports.get(p).unwrap();
+        let name = midi_input.port_name(port).unwrap();
+        println!("Port {}: {}", p, name);
+
     }
+    print!("Select Port > ");
+    let mut midi_port = String::new();
+
+    std::io::stdin()
+        .read_line(&mut midi_port)
+        .expect("Failed to read input");
+
+    let midi_port = midi_port.trim()
+        .parse::<usize>()
+        .expect("Must be a positive number");
+    
+    if midi_port > ports.len() {
+        panic!("Chosen midi port out of bounds");
+    }
+    Ok(midi_port)
 }
 
-fn get_attenuated() -> f32 {
-    get_random() * 0.2
-}
 
-fn get_random() -> f32 {
-    let mut rng = rand::thread_rng();
-    let y: f32 = rng.gen();
-    return y
-}
