@@ -1,4 +1,4 @@
-use midir::MidiInput;
+use midir::{MidiInput, Ignore};
 use std::io;
 use std::error::Error;
 
@@ -9,20 +9,20 @@ fn main() {
 }
 
 fn start_midi() -> Result<(), Box<dyn Error>> {
-    let midi_input = MidiInput::new("midi_connections").unwrap();
+    let mut input = String::new();
+    let mut midi_input = MidiInput::new("midi_connections").unwrap();
+    midi_input.ignore(Ignore::None);
     let port_number = choose_midi_input(&midi_input).unwrap();
     println!("Chosen MIDI port is {}", port_number);
     let ports_list = midi_input.ports();
     let midi_input_port = ports_list.get(port_number).unwrap();
-    midi_input.connect(midi_input_port,
-        "midi_input", 
+    let _connection = midi_input.connect(midi_input_port,
+        "midir-read-input", 
         move | stamp, message, _| {
-            println!("MSG");
             println!("MSG IN: {}, {:?} | Len = {}", stamp, message, message.len());
         }, ())?;
-    // let mut buf = String::new();
-    // io::stdin().read_line(&mut buf).expect("Failed to read");
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    
+    io::stdin().read_line(&mut input)?; // wait for next enter key press
     Ok(())
 }
 
