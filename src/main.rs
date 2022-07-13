@@ -1,15 +1,17 @@
-use midir::{MidiInput, Ignore};
+use midir::{MidiInput, MidiInputConnection, Ignore};
 use std::io;
 use std::error::Error;
 
 fn main() {
     //play_white_noise();    
-    start_midi().unwrap();
-    
+    let _connection = start_midi().unwrap();
+
+    println!("Press enter to close");
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap(); // wait for next enter key press
 }
 
-fn start_midi() -> Result<(), Box<dyn Error>> {
-    let mut input = String::new();
+fn start_midi() -> Result<MidiInputConnection<()>, Box<dyn Error>> {
     let mut midi_input = MidiInput::new("midi_connections").unwrap();
     midi_input.ignore(Ignore::None);
     let port_number = choose_midi_input(&midi_input).unwrap();
@@ -21,9 +23,7 @@ fn start_midi() -> Result<(), Box<dyn Error>> {
         move | stamp, message, _| {
             println!("MSG IN: {}, {:?} | Len = {}", stamp, message, message.len());
         }, ())?;
-    
-    io::stdin().read_line(&mut input)?; // wait for next enter key press
-    Ok(())
+    Ok(_connection)
 }
 
 fn choose_midi_input(midi_input: &MidiInput) -> Result<usize, io::Error> {
