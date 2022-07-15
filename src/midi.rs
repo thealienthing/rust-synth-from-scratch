@@ -1,4 +1,5 @@
 use midir::{MidiInput, MidiInputConnection, Ignore};
+use midly::{live::LiveEvent, MidiMessage};
 use std::io;
 use std::error::Error;
 
@@ -12,9 +13,28 @@ pub fn start_midi() -> Result<MidiInputConnection<()>, Box<dyn Error>> {
     let _connection = midi_input.connect(midi_input_port,
         "midir-read-input", 
         move | stamp, message, _| {
-            println!("MSG IN: {}, {:?} | Len = {}", stamp, message, message.len());
+            process_midi_msg(stamp, message);
         }, ())?;
     Ok(_connection)
+}
+
+fn process_midi_msg(_timestamp: u64, message: &[u8]) {
+    let event = LiveEvent::parse(message).unwrap();
+    match event {
+        LiveEvent::Midi { channel, message } => match message {
+            MidiMessage::NoteOn { key, vel: _ } => {
+                println!("Note on: {} on channel {}", key, channel);
+            },
+            MidiMessage::NoteOff { key, vel: _ } => {
+                println!("Note off: {} on channel {}", key, channel);
+            },
+            MidiMessage::Controller { controller, value } => {
+                println!("CC {} val: {}", controller, value);
+            },
+            _ => ()
+        },
+        _ => ()
+    }
 }
 
 fn choose_midi_input(midi_input: &MidiInput) -> Result<usize, io::Error> {
