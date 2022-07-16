@@ -1,5 +1,6 @@
-use cpal::traits::{HostTrait, DeviceTrait, StreamTrait};
+use cpal::traits::{HostTrait, DeviceTrait};
 use cpal::{Sample, SampleFormat};
+use rand::Rng;
 
 fn output_callback<T: Sample>(data: &mut [T], _: &cpal::OutputCallbackInfo) {
     for sample in data.iter_mut() {
@@ -17,7 +18,7 @@ fn get_random() -> f32 {
     return y
 }
 
-fn play_white_noise() {
+pub fn audio_stream() -> cpal::Stream {
     let host = cpal::default_host();
     let device = host.default_output_device()
         .expect("Failed to get default output device");
@@ -31,11 +32,17 @@ fn play_white_noise() {
     let config = supported_config.into();
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
     let stream = match sample_format {
-        SampleFormat::F32 => device.build_output_stream(&config, output_callback::<f32>, err_fn),
+        SampleFormat::F32 => device.build_output_stream(
+            &config,
+            move |_data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                // react to stream events and read or write stream data here.
+
+
+            },
+            err_fn),
         SampleFormat::I16 => device.build_output_stream(&config, output_callback::<i16>, err_fn),
         SampleFormat::U16 => device.build_output_stream(&config, output_callback::<u16>, err_fn)
     }.unwrap();
 
-    stream.play().unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(4000));
+    stream
 }
